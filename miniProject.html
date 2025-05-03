@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Certificate Verification System</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/web3/1.8.2/web3.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            line-height: 1.6;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .section {
+            background: #f9f9f9;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid #ddd;
+        }
+        h2 {
+            margin-top: 0;
+            color: #2c3e50;
+        }
+        input, select {
+            width: 100%;
+            padding: 10px;
+            margin: 8px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        label {
+            font-weight: bold;
+            display: block;
+            margin-top: 10px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #e8f4f8;
+            border-radius: 4px;
+            border-left: 5px solid #4CAF50;
+        }
+        .error {
+            background-color: #f8d7da;
+            border-left: 5px solid #dc3545;
+        }
+        .tab {
+            overflow: hidden;
+            border: 1px solid #ccc;
+            background-color: #f1f1f1;
+            border-radius: 5px 5px 0 0;
+        }
+        .tab button {
+            background-color: inherit;
+            float: left;
+            border: none;
+            outline: none;
+            cursor: pointer;
+            padding: 14px 16px;
+            transition: 0.3s;
+            font-size: 16px;
+            margin-top: 0;
+        }
+        .tab button:hover {
+            background-color: #ddd;
+        }
+        .tab button.active {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .tabcontent {
+            display: none;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-top: none;
+            border-radius: 0 0 5px 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Certificate Verification System</h1>
+        
+        <div class="section">
+            <h2>Connect to Contract</h2>
+            <label for="contract-address">Contract Address:</label>
+            <input type="text" id="contract-address" placeholder="Enter your deployed contract address">
+            
+            <button id="connect-btn">Connect</button>
+            <div id="connection-status" class="result">Status: Not connected</div>
+        </div>
+
+        <div class="tab">
+            <button class="tablinks" onclick="openTab(event, 'issue')" id="defaultOpen">Issue Certificate</button>
+            <button class="tablinks" onclick="openTab(event, 'verify')">Verify Certificate</button>
+            <button class="tablinks" onclick="openTab(event, 'revoke')">Revoke Certificate</button>
+            <button class="tablinks" onclick="openTab(event, 'manage')">Manage Issuers</button>
+        </div>
+
+        <div id="issue" class="tabcontent">
+            <h2>Issue Certificate</h2>
+            <label for="student-name">Student Name:</label>
+            <input type="text" id="student-name" placeholder="Enter student name">
+            
+            <label for="student-id">Student ID:</label>
+            <input type="text" id="student-id" placeholder="Enter student ID">
+            
+            <label for="course-name">Course Name:</label>
+            <input type="text" id="course-name" placeholder="Enter course name">
+            
+            <label for="grade">Grade:</label>
+            <input type="text" id="grade" placeholder="Enter grade">
+            
+            <button id="issue-btn">Issue Certificate</button>
+            <div id="issue-result" class="result" style="display: none;"></div>
+        </div>
+
+        <div id="verify" class="tabcontent">
+            <h2>Verify Certificate</h2>
+            <label for="certificate-id">Certificate ID:</label>
+            <input type="text" id="certificate-id" placeholder="Enter certificate ID (hash)">
+            
+            <button id="verify-btn">Verify Certificate</button>
+            <div id="verify-result" class="result" style="display: none;"></div>
+        </div>
+
+        <div id="revoke" class="tabcontent">
+            <h2>Revoke Certificate</h2>
+            <label for="revoke-id">Certificate ID to Revoke:</label>
+            <input type="text" id="revoke-id" placeholder="Enter certificate ID (hash)">
+            
+            <button id="revoke-btn">Revoke Certificate</button>
+            <div id="revoke-result" class="result" style="display: none;"></div>
+        </div>
+
+        <div id="manage" class="tabcontent">
+            <h2>Manage Issuers</h2>
+            <div class="section">
+                <h3>Authorize Issuer</h3>
+                <label for="auth-address">Issuer Address:</label>
+                <input type="text" id="auth-address" placeholder="Enter address to authorize">
+                
+                <button id="auth-btn">Authorize Issuer</button>
+                <div id="auth-result" class="result" style="display: none;"></div>
+            </div>
+            
+            <div class="section">
+                <h3>Revoke Issuer</h3>
+                <label for="revoke-address">Issuer Address:</label>
+                <input type="text" id="revoke-address" placeholder="Enter address to revoke">
+                
+                <button id="revoke-issuer-btn">Revoke Issuer</button>
+                <div id="revoke-issuer-result" class="result" style="display: none;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Contract ABI (copy from Remix after compilation)
+        const contractABI = [
+            {
+                "inputs": [],
+                "stateMutability": "nonpayable",
+                "type": "constructor"
+            },
+            {
+                "anonymous": false,
+                "inputs": [
+                    {
+                        "indexed": true,
+                        "internalType": "bytes32",
+                        "name": "certificateId",
+                        "type": "bytes32"
+                    },
+                    {
+                        "indexed": true,
+                        "internalType": "address",
+                        "name": "issuer",
+                        "type": "address"
+                    },
+                    {
+                        "indexed": false,
+                        "internalType": "string",
+                        "name": "studentName",
+                        "type": "string"
+                    },
+                    {
+                        "indexed": false,
+                        "internalType": "string",
+                        "name": "courseName",
+                        "type": "string"
+                    }
+                ],
+                "name": "CertificateIssued",
+                "type": "event"
+            },
+            {
+                "anonymous": false,
+                "inputs": [
+                    {
+                        "indexed": true,
+                        "internalType": "bytes32",
+                        "name": "certificateId",
+                        "type": "bytes32"
+                    }
+                ],
+                "name": "CertificateRevoked",
+                "type": "event"
+            },
+            {
+                "anonymous": false,
+                "inputs": [
+                    {
+                        "indexed": true,
+                        "internalType": "address",
+                        "name": "issuer",
+                        "type": "address"
+                    }
+                ],
+                "name": "IssuerAuthorized",
+                "type": "event"
+            },
+            {
+                "anonymous": false,
+                "inputs": [
+                    {
+                        "indexed": true,
+                        "internalType": "address",
+                        "name": "issuer",
+                        "type": "address"
+                    }
+                ],
+                "name": "IssuerRevoked",
+                "type": "event"
+            },
+            {
+                "inputs": [
+                    {
+                        "internalType": "address",
+                        "name": "issuer",
+                        "type": "address"
+                    }
+                ],
+                "name": "authorizeIssuer",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {
+                        "internalType": "address",
+                        "name": "",
+                        "type": "address"
+                    }
+                ],
+                "name": "authorizedIssuers",
+                "outputs": [
+                    {
+                        "internalType": "bool",
+                        "name": "",
+                        "type": "bool"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {
+                        "internalType": "bytes32",
+                        "name": "",
+                        "type": "bytes32"
+                    }
+                ],
+                "name": "certificates",
+                "outputs": [
+                    {
+                        "internalType": "address",
+                        "name": "issuer",
+                        "type": "address"
+                    },
+                    {
+                        "internalType": "string",
+                        "name": "studentName",
+                        "type": "string"
+                    },
+                    {
+                        "internalType": "string",
+                        "name": "courseName",
+                        "type": "string"
+                    },
+                    {
+                        "internalType": "string",
+                        "name": "grade",
+                        "type": "string"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "issueDate",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "bool",
+                        "name": "revoked",
+                        "type": "bool"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {
+                        "internalType": "bytes32",
+                        "name": "certificateId",
+                        "type": "bytes32"
+                    }
+                ],
+                "name": "isCertificateValid",
+                "outputs": [
+                    {
+                        "internalType": "bool",
+                        "name": "",
+                        "type": "bool"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {
+                        "internalType": "string",
+                        "name": "studentName",
+                        "type": "string"
+                    },
+                    {
+                        "internalType": "string",
+                        "name": "studentId",
+                        "type": "string"
+                    },
+                    {
+                        "internalType": "string",
+                        "name": "courseName",
+                        "type": "string"
+                    },
+                    {
+                        "internalType": "string",
+                        "name": "grade",
+                        "type": "string"
+                    }
+                ],
+                "name": "issueCertificate",
+                "outputs": [
+                    {
+                        "internalType": "bytes32",
+                        "name": "",
+                        "type": "bytes32"
+                    }
+                ],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "owner",
+                "outputs": [
+                    {
+                        "internalType": "address",
+                        "name": "",
+                        "type": "address"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {
+                        "internalType": "bytes32",
+                        "name": "certificateId",
+                        "type": "bytes32"
+                    }
+                ],
+                "name": "revokeCertificate",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {
+                        "internalType": "address",
+                        "name": "issuer",
+                        "type": "address"
+                    }
+                ],
+                "name": "revokeIssuer",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {
+                        "internalType": "bytes32",
+                        "name": "certificateId",
+                        "type": "bytes32"
+                    }
+                ],
+                "name": "verifyCertificate",
+                "outputs": [
+                    {
+                        "internalType": "address",
+                        "name": "issuer",
+                        "type": "address"
+                    },
+                    {
+                        "internalType": "string",
+                        "name": "studentName",
+                        "type": "string"
+                    },
+                    {
+                        "internalType": "string",
+                        "name": "courseName",
+                        "type": "string"
+                    },
+                    {
+                        "internalType": "string",
+                        "name": "grade",
+                        "type": "string"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "issueDate",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "bool",
+                        "name": "isValid",
+                        "type": "bool"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            }
+        ];
+
+        let contract;
+        let web3;
+        let currentAccount;
+
+        // Initialize Web3
+        async function initWeb3() {
+            // Modern browsers with MetaMask or similar
+            if (window.ethereum) {
+                web3 = new Web3(window.ethereum);
+                try {
+                    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                    currentAccount = accounts[0];
+                    return true;
+                } catch (error) {
+                    console.error("User denied account access");
+                    return false;
+                }
+            }
+            // Legacy dapp browsers
+            else if (window.web3) {
+                web3 = new Web3(window.web3.currentProvider);
+                const accounts = await web3.eth.getAccounts();
+                currentAccount = accounts[0];
+                return true;
+            }
+            // If using Remix IDE via HTTP - connect to its provider
+            else {
+                try {
+                    // Connect to Remix IDE Web3 provider
+                    // This assumes you're opening this page from Remix IDE's browserf
+                    web3 = new Web3('http://127.0.0.1:7545');
+                    const accounts = await web3.eth.getAccounts();
+                    currentAccount = accounts[0];
+                    document.getElementById('connection-status').textContent = "Status: Connected to local node";
+                    return true;
+                } catch (error) {
+                    document.getElementById('connection-status').textContent = 
+                        "Status: Not connected. Please install MetaMask or open this in Remix IDE";
+                    document.getElementById('connection-status').classList.add("error");
+                    console.error("No web3 provider detected");
+                    return false;
+                }
+            }
+        }
+
+        // Connect to contract
+        async function connectToContract() {
+            const contractAddress = document.getElementById('contract-address').value;
+            if (!contractAddress) {
+                alert("Please enter contract address");
+                return;
+            }
+
+            try {
+                contract = new web3.eth.Contract(contractABI, contractAddress);
+                document.getElementById('connection-status').textContent = 
+                    `Status: Connected to contract at ${contractAddress}`;
+                document.getElementById('connection-status').classList.remove("error");
+            } catch (error) {
+                document.getElementById('connection-status').textContent = 
+                    `Error: ${error.message}`;
+                document.getElementById('connection-status').classList.add("error");
+                console.error(error);
+            }
+        }
+
+        // Issue Certificate
+        async function issueCertificate() {
+            if (!contract) {
+                alert("Please connect to the contract first");
+                return;
+            }
+
+            const studentName = document.getElementById('student-name').value;
+            const studentId = document.getElementById('student-id').value;
+            const courseName = document.getElementById('course-name').value;
+            const grade = document.getElementById('grade').value;
+
+            if (!studentName || !studentId || !courseName || !grade) {
+                alert("Please fill all fields");
+                return;
+            }
+
+            const resultElement = document.getElementById('issue-result');
+            resultElement.style.display = 'block';
+
+            try {
+                resultElement.textContent = "Processing transaction...";
+                resultElement.classList.remove("error");
+
+                const result = await contract.methods.issueCertificate(
+                    studentName, studentId, courseName, grade
+                ).send({ from: currentAccount });
+
+                let certificateId;
+                // Find the certificateId from events
+                if (result.events && result.events.CertificateIssued) {
+                    certificateId = result.events.CertificateIssued.returnValues.certificateId;
+                }
+
+                resultElement.innerHTML = `
+                    <h3>Certificate Issued Successfully!</h3>
+                    <p><strong>Transaction Hash:</strong> ${result.transactionHash}</p>
+                    <p><strong>Certificate ID:</strong> ${certificateId || 'Not available in result'}</p>
+                    <p>Save this Certificate ID for future verification!</p>
+                `;
+            } catch (error) {
+                resultElement.textContent = `Error issuing certificate: ${error.message}`;
+                resultElement.classList.add("error");
+                console.error(error);
+            }
+        }
+
+        // Verify Certificate
+        async function verifyCertificate() {
+            if (!contract) {
+                alert("Please connect to the contract first");
+                return;
+            }
+
+            const certificateId = document.getElementById('certificate-id').value;
+            if (!certificateId) {
+                alert("Please enter certificate ID");
+                return;
+            }
+
+            const resultElement = document.getElementById('verify-result');
+            resultElement.style.display = 'block';
+
+            try {
+                resultElement.textContent = "Verifying certificate...";
+                resultElement.classList.remove("error");
+
+                const result = await contract.methods.verifyCertificate(certificateId).call();
+
+                const issueDateFormatted = new Date(result.issueDate * 1000).toLocaleString();
+
+                resultElement.innerHTML = `
+                    <h3>Certificate Details</h3>
+                    <p><strong>Student Name:</strong> ${result.studentName}</p>
+                    <p><strong>Course Name:</strong> ${result.courseName}</p>
+                    <p><strong>Grade:</strong> ${result.grade}</p>
+                    <p><strong>Issuer:</strong> ${result.issuer}</p>
+                    <p><strong>Issue Date:</strong> ${issueDateFormatted}</p>
+                    <p><strong>Status:</strong> ${result.isValid ? 
+                        '<span style="color: green; font-weight: bold;">VALID</span>' : 
+                        '<span style="color: red; font-weight: bold;">INVALID</span>'}</p>
+                `;
+            } catch (error) {
+                resultElement.textContent = `Error verifying certificate: ${error.message}`;
+                resultElement.classList.add("error");
+                console.error(error);
+            }
+        }
+
+        // Revoke Certificate
+        async function revokeCertificate() {
+            if (!contract) {
+                alert("Please connect to the contract first");
+                return;
+            }
+
+            const certificateId = document.getElementById('revoke-id').value;
+            if (!certificateId) {
+                alert("Please enter certificate ID");
+                return;
+            }
+
+            const resultElement = document.getElementById('revoke-result');
+            resultElement.style.display = 'block';
+
+            try {
+                resultElement.textContent = "Processing transaction...";
+                resultElement.classList.remove("error");
+
+                const result = await contract.methods.revokeCertificate(certificateId)
+                    .send({ from: currentAccount });
+
+                resultElement.innerHTML = `
+                    <h3>Certificate Revoked Successfully!</h3>
+                    <p><strong>Transaction Hash:</strong> ${result.transactionHash}</p>
+                `;
+            } catch (error) {
+                resultElement.textContent = `Error revoking certificate: ${error.message}`;
+                resultElement.classList.add("error");
+                console.error(error);
+            }
+        }
+
+        // Authorize Issuer
+        async function authorizeIssuer() {
+            if (!contract) {
+                alert("Please connect to the contract first");
+                return;
+            }
+
+            const issuerAddress = document.getElementById('auth-address').value;
+            if (!issuerAddress) {
+                alert("Please enter issuer address");
+                return;
+            }
+
+            const resultElement = document.getElementById('auth-result');
+            resultElement.style.display = 'block';
+
+            try {
+                resultElement.textContent = "Processing transaction...";
+                resultElement.classList.remove("error");
+
+                const result = await contract.methods.authorizeIssuer(issuerAddress)
+                    .send({ from: currentAccount });
+
+                resultElement.innerHTML = `
+                    <h3>Issuer Authorized Successfully!</h3>
+                    <p><strong>Transaction Hash:</strong> ${result.transactionHash}</p>
+                `;
+            } catch (error) {
+                resultElement.textContent = `Error authorizing issuer: ${error.message}`;
+                resultElement.classList.add("error");
+                console.error(error);
+            }
+        }
+
+        // Revoke Issuer
+        async function revokeIssuer() {
+            if (!contract) {
+                alert("Please connect to the contract first");
+                return;
+            }
+
+            const issuerAddress = document.getElementById('revoke-address').value;
+            if (!issuerAddress) {
+                alert("Please enter issuer address");
+                return;
+            }
+
+            const resultElement = document.getElementById('revoke-issuer-result');
+            resultElement.style.display = 'block';
+
+            try {
+                resultElement.textContent = "Processing transaction...";
+                resultElement.classList.remove("error");
+
+                const result = await contract.methods.revokeIssuer(issuerAddress)
+                    .send({ from: currentAccount });
+
+                resultElement.innerHTML = `
+                    <h3>Issuer Revoked Successfully!</h3>
+                    <p><strong>Transaction Hash:</strong> ${result.transactionHash}</p>
+                `;
+            } catch (error) {
+                resultElement.textContent = `Error revoking issuer: ${error.message}`;
+                resultElement.classList.add("error");
+                console.error(error);
+            }
+        }
+
+        // Tab functionality
+        function openTab(evt, tabName) {
+            var i, tabcontent, tablinks;
+            
+            tabcontent = document.getElementsByClassName("tabcontent");
+            for (i = 0; i < tabcontent.length; i++) {
+                tabcontent[i].style.display = "none";
+            }
+            
+            tablinks = document.getElementsByClassName("tablinks");
+            for (i = 0; i < tablinks.length; i++) {
+                tablinks[i].className = tablinks[i].className.replace(" active", "");
+            }
+            
+            document.getElementById(tabName).style.display = "block";
+            evt.currentTarget.className += " active";
+        }
+
+        // Event listeners
+        document.addEventListener('DOMContentLoaded', async function() {
+            // Initialize Web3
+            const initialized = await initWeb3();
+            
+            if (initialized) {
+                document.getElementById('connection-status').textContent = 
+                    `Status: Web3 initialized. Account: ${currentAccount}`;
+            }
+            
+            // Set connect button event listener
+            document.getElementById('connect-btn').addEventListener('click', connectToContract);
+            
+            // Set issue button event listener
+            document.getElementById('issue-btn').addEventListener('click', issueCertificate);
+            
+            // Set verify button event listener
+            document.getElementById('verify-btn').addEventListener('click', verifyCertificate);
+            
+            // Set revoke button event listener
+            document.getElementById('revoke-btn').addEventListener('click', revokeCertificate);
+            
+            // Set authorize issuer button event listener
+            document.getElementById('auth-btn').addEventListener('click', authorizeIssuer);
+            
+            // Set revoke issuer button event listener
+            document.getElementById('revoke-issuer-btn').addEventListener('click', revokeIssuer);
+            
+            // Open the default tab
+            document.getElementById("defaultOpen").click();
+        });
+    </script>
+</body>
+</html>
